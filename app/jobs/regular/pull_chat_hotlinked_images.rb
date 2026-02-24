@@ -67,7 +67,7 @@ module Jobs
         message.cook
         message.save!
 
-        ::Chat::Publisher.publish_refresh!(message.chat_channel, message)
+        ::Chat::Publisher.publish_edit!(message.chat_channel, message)
       end
     end
 
