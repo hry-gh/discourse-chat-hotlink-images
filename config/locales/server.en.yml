@@ -1,1 +1,3 @@
 en:
+  site_settings:
+    chat_hotlink_images_enabled: "Automatically download and rehost hotlinked images in chat messages. Requires 'download remote images to local' to also be enabled."
