@@ -87,7 +87,24 @@ module Jobs
 
     def extract_images_from(html)
       doc = Nokogiri::HTML5.fragment(html)
-      doc.css("img[src], a.lightbox[href]") - doc.css("img.avatar, img.emoji, .lightbox img[src]")
+
+      images = doc.css("img[src]") - doc.css("img.avatar, img.emoji, .lightbox img[src]")
+
+      images += doc.css("a.lightbox[href]")
+
+      doc.css("a[href]").each do |link|
+        href = link["href"].to_s
+        next if href.blank?
+        next if images.any? { |img| (img["src"] || img["href"]) == href }
+
+        if href.match?(/\.(png|jpe?g|gif|webp|avif|svg|bmp|ico)(\?|$)/i) ||
+             href.include?("cdn.discordapp.com") ||
+             href.include?("media.discordapp.net")
+          images << link
+        end
+      end
+
+      images
     end
 
     def should_download_image?(src)
