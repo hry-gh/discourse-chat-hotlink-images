@@ -65,7 +65,10 @@ module Jobs
       if raw != message.message
         message.message = raw
         message.cook
+        message.excerpt = message.build_excerpt
         message.save!
+
+        message.reload
 
         ::Chat::Publisher.publish_edit!(message.chat_channel, message)
       end
