@@ -19,18 +19,9 @@ require_relative "lib/chat_hotlink_images/engine"
 after_initialize do
   # Only run if chat plugin is enabled
   if defined?(Chat)
-    # When a chat message is created, enqueue job to pull hotlinked images
-    on(:chat_message_created) do |message, channel, user|
-      if SiteSetting.chat_hotlink_images_enabled && SiteSetting.download_remote_images_to_local?
-        Jobs.enqueue(
-          :pull_chat_hotlinked_images,
-          chat_message_id: message.id,
-        )
-      end
-    end
-
-    # When a chat message is edited, also check for new hotlinked images
-    on(:chat_message_edited) do |message, channel, user|
+    # When a chat message is processed (after oneboxes, etc.), enqueue job to pull hotlinked images
+    # This fires after Jobs::Chat::ProcessMessage runs, so cooked HTML has proper <img> tags
+    on(:chat_message_processed) do |doc, message|
       if SiteSetting.chat_hotlink_images_enabled && SiteSetting.download_remote_images_to_local?
         Jobs.enqueue(
           :pull_chat_hotlinked_images,
