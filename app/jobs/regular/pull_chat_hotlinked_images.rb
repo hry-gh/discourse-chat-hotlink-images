@@ -33,24 +33,28 @@ module Jobs
       raw = message.message
 
       extract_images_from(message.cooked).each do |node|
-        src = original_src = node["src"] || node["href"]
+        src = node["src"] || node["href"]
         next if src.blank?
 
-        src = "#{SiteSetting.force_https ? "https" : "http"}:#{src}" if src.start_with?("//")
+        download_src = src
+        download_src = "#{SiteSetting.force_https ? "https" : "http"}:#{src}" if src.start_with?("//")
 
-        next unless should_download_image?(src)
+        next unless should_download_image?(download_src)
+
+        normalized_src = normalize_src(src)
+        next if downloaded_uploads.key?(normalized_src)
 
         begin
-          upload = attempt_download(src, message.user_id)
+          upload = attempt_download(download_src, message.user_id)
           next unless upload&.persisted?
 
-          downloaded_uploads[original_src] = upload
+          downloaded_uploads[normalized_src] = upload
 
           unless message.upload_ids.include?(upload.id)
             UploadReference.ensure_exist!(upload_ids: [upload.id], target: message)
           end
         rescue StandardError => e
-          log(:error, "Failed to download hotlinked image #{src}: #{e.message}")
+          log(:error, "Failed to download hotlinked image #{download_src}: #{e.message}")
         end
       end
 
@@ -150,11 +154,19 @@ module Jobs
     end
 
     def replace_hotlinked_urls(raw, downloaded_uploads)
-      downloaded_uploads.each do |original_src, upload|
-        # Replace URLs in markdown/HTML with the upload short_url
-        raw = raw.gsub(original_src, upload.short_url)
+      InlineUploads.replace_hotlinked_image_urls(raw: raw) do |match_src|
+        normalized_match = normalize_src(match_src)
+        downloaded_uploads[normalized_match]
       end
-      raw
+    end
+
+    def normalize_src(src)
+      uri = Addressable::URI.heuristic_parse(src)
+      uri.normalize!
+      uri.scheme = nil
+      uri.to_s
+    rescue URI::Error, Addressable::URI::InvalidURIError
+      src
     end
 
     def log(level, message)
