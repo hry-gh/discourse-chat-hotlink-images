@@ -24,7 +24,7 @@ module Jobs
     private
 
     def pull_hotlinked_images
-      message = Chat::Message.find_by(id: @chat_message_id)
+      message = ::Chat::Message.find_by(id: @chat_message_id)
       return if message.nil?
       return if message.chat_channel.nil?
       return if message.trashed?
@@ -63,7 +63,7 @@ module Jobs
         message.cook
         message.save!
 
-        Chat::Publisher.publish_refresh!(message.chat_channel, message)
+        ::Chat::Publisher.publish_refresh!(message.chat_channel, message)
       end
     end
 
