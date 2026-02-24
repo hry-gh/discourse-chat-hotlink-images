@@ -25,21 +25,32 @@ module Jobs
 
     def pull_hotlinked_images
       message = ::Chat::Message.find_by(id: @chat_message_id)
-      return if message.nil?
-      return if message.chat_channel.nil?
-      return if message.trashed?
+      return log(:info, "Message #{@chat_message_id} not found") if message.nil?
+      return log(:info, "Message #{@chat_message_id} has no channel") if message.chat_channel.nil?
+      return log(:info, "Message #{@chat_message_id} is trashed") if message.trashed?
+
+      log(:info, "Processing message #{message.id}, raw: #{message.message.truncate(200)}")
+      log(:info, "Cooked: #{message.cooked.truncate(500)}")
 
       downloaded_uploads = {}
       raw = message.message
 
-      extract_images_from(message.cooked).each do |node|
+      images = extract_images_from(message.cooked)
+      log(:info, "Found #{images.size} potential images")
+
+      images.each do |node|
         src = node["src"] || node["href"]
         next if src.blank?
+
+        log(:info, "Checking image src: #{src}")
 
         download_src = src
         download_src = "#{SiteSetting.force_https ? "https" : "http"}:#{src}" if src.start_with?("//")
 
-        next unless should_download_image?(download_src)
+        unless should_download_image?(download_src)
+          log(:info, "Skipping #{download_src} - should_download_image? returned false")
+          next
+        end
 
         normalized_src = normalize_src(src)
         next if downloaded_uploads.key?(normalized_src)

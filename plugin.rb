@@ -22,11 +22,16 @@ after_initialize do
     # When a chat message is processed (after oneboxes, etc.), enqueue job to pull hotlinked images
     # This fires after Jobs::Chat::ProcessMessage runs, so cooked HTML has proper <img> tags
     on(:chat_message_processed) do |doc, message|
+      Rails.logger.info("[ChatHotlinkImages] chat_message_processed event fired for message #{message.id}")
+
       if SiteSetting.chat_hotlink_images_enabled && SiteSetting.download_remote_images_to_local?
+        Rails.logger.info("[ChatHotlinkImages] Enqueuing job for message #{message.id}")
         Jobs.enqueue(
           :pull_chat_hotlinked_images,
           chat_message_id: message.id,
         )
+      else
+        Rails.logger.info("[ChatHotlinkImages] Skipping - enabled: #{SiteSetting.chat_hotlink_images_enabled}, download_remote: #{SiteSetting.download_remote_images_to_local?}")
       end
     end
   end
